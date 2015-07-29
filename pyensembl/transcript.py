@@ -412,6 +412,8 @@ class Transcript(Locus):
         cDNA coding sequence (from start codon to stop codon, without
         any introns)
         """
+        if self.sequence is None:
+            raise ValueError("No coding sequence for %s" % self)
         start = self.first_start_codon_spliced_offset
         end = self.last_stop_codon_spliced_offset
         # If start codon is the at nucleotide offsets [3,4,5] and
@@ -430,6 +432,8 @@ class Transcript(Locus):
         cDNA sequence of 5' UTR
         (untranslated region at the beginning of the transcript)
         """
+        if self.sequence is None:
+            raise ValueError("No 5' UTR sequence for %s" % self)
         # pylint: disable=invalid-slice-index
         # TODO(tavi) Figure out pylint is not happy with this slice
         return self.sequence[:self.first_start_codon_spliced_offset]
@@ -440,6 +444,8 @@ class Transcript(Locus):
         cDNA sequence of 3' UTR
         (untranslated region at the end of the transcript)
         """
+        if self.sequence is None:
+            raise ValueError("No 3' UTR sequence for %s" % self)
         return self.sequence[self.last_stop_codon_spliced_offset + 1:]
 
     @memoized_property

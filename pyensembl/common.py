@@ -13,10 +13,29 @@
 # limitations under the License.
 
 from functools import wraps
+from os.path import join
 
+import datacache
 from typechecks import is_string
 
-CACHE_SUBDIR = "ensembl"
+CACHE_BASE_SUBDIR = "pyensembl"
+
+def cache_subdir(annotation_name, annotation_version=None, reference_name=None):
+    result = CACHE_BASE_SUBDIR
+    for subdir in [annotation_name, annotation_version, reference_name]:
+        if subdir is not None:
+            result = join(result, str(subdir))
+    return result
+
+def get_cache(
+        annotation_name,
+        annotation_version=None,
+        reference_name=None,
+        data_type=None):
+    subdir = cache_subdir(annotation_name, annotation_version, reference_name)
+    if data_type:
+        subdir = join(subdir, data_type)
+    return datacache.Cache(subdir)
 
 def _memoize_cache_key(args, kwargs):
     """Turn args tuple and kwargs dictionary into a hashable key.

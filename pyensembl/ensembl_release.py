@@ -63,16 +63,17 @@ class EnsemblRelease(Genome):
             else:
                 raise ValueError("Must provide a reference_name for "
                                  "non-human Ensembl releases.")
-        Genome.__init__(self,
-                        reference_name=reference_name,
-                        gtf_path_or_url=gtf_url,
-                        transcript_fasta_path_or_url=transcript_fasta_url,
-                        protein_fasta_path_or_url=protein_fasta_url,
-                        name="Ensembl",
-                        version=release,
-                        only_human=only_human,
-                        auto_download=auto_download,
-                        require_ensembl_ids=True)
+        Genome.__init__(
+                self,
+                reference_name=reference_name,
+                gtf_path_or_url=gtf_url,
+                transcript_fasta_path_or_url=transcript_fasta_url,
+                protein_fasta_path_or_url=protein_fasta_url,
+                name="Ensembl",
+                version=release,
+                only_human=only_human,
+                auto_download=auto_download,
+                require_ensembl_ids=True)
 
     def __str__(self):
         return "EnsemblRelease(release=%d, species=%s)" % (

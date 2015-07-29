@@ -48,10 +48,13 @@ class GenomeSource(object):
 
     def install_string_console(self):
         return "pyensembl install --%s \"%s\"" % (
-            self.name, self.path_or_url)
+            # expect options to commandline  script to look like
+            # --gtf-path-or-url and not "gtf_path_or_url"
+            self.name.replace("_", "-"),
+            self.path_or_url)
 
     def install_string_python(self):
-        return "Genome(reference_name=%s, %s=\"%s\")).install()" % (
+        return "Genome(reference_name=\"%s\", %s=\"%s\")).install()" % (
             self.reference_name, self.name, self.path_or_url)
 
     def is_url_format(self):

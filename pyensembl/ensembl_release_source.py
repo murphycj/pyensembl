@@ -22,12 +22,11 @@ class EnsemblReleaseSource(GenomeSource):
     local filename transformation and generates Ensembl-specific
     install messages.
     """
-    def __init__(self,
-                 name,
-                 path_or_url):
-        GenomeSource.__init__(self,
-                              name=name,
-                              path_or_url=path_or_url)
+    def __init__(self, name, path_or_url):
+        GenomeSource.__init__(
+            self,
+            name=name,
+            path_or_url=path_or_url)
 
     @property
     def original_filename(self):
@@ -57,11 +56,6 @@ class EnsemblReleaseSource(GenomeSource):
             filename_parts[0],
             ".%d.fa." % self.release,
             filename_parts[1]])
-
-        GenomeSource.__init__(self,
-                              gtf_path=gtf_url,
-                              transcript_fasta_path=transcript_fasta_url,
-                              protein_fasta_path=protein_fasta_url)
 
     def install_string_console(self):
         return "pyensembl install --release %d" % self.release

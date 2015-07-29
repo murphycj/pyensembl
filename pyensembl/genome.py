@@ -36,7 +36,6 @@ from .gene import Gene
 from .gtf import GTF
 from .sequence_data import SequenceData
 from .transcript import Transcript
-from .genome_source import GenomeSource
 
 class Genome(object):
     """
@@ -44,79 +43,82 @@ class Genome(object):
     a particular genomic database source (e.g. a single Ensembl release) and
     provides a wide variety of helper methods for accessing this data.
     """
-    def __init__(self,
-                 reference_name,
-                 gtf_path_or_url,
-                 transcript_fasta_path_or_url=None,
-                 protein_fasta_path_or_url=None,
-                 name=None,
-                 version=None,
-                 only_human=False,
-                 auto_download=False,
-                 require_ensembl_ids=True):
+    def __init__(
+            self,
+            reference_name,
+            annotation_name,
+            annotation_version=None,
+            gtf_source=None,
+            transcript_fasta_source=None,
+            protein_fasta_source=None,
+            only_human=False,
+            auto_download=False,
+            require_ensembl_ids=True):
         self.reference_name = reference_name
-        self.gtf_path_or_url = gtf_path_or_url
-        self.transcript_fasta_path_or_url = transcript_fasta_path_or_url
-        self.protein_fasta_path_or_url = protein_fasta_path_or_url
-        self.name = name
-        self.version = version
+        self.annotation_name = annotation_name
+        self.annotation_version = annotation_version
+        self.gtf_source = gtf_source
+        self.transcript_fasta_source = transcript_fasta_source
+        self.protein_fasta_source = protein_fasta_source
         self.only_human = only_human
         self.auto_download = auto_download
-
-        # GTF object wraps the source GTF file from which we get
-        # genome annotations. Presents access to each feature
-        # annotations as a pandas.DataFrame.
-        self.gtf = GTF(
-            gtf_source=GenomeSource(name="gtf_path_or_url",
-                                    path_or_url=gtf_path_or_url,
-                                    reference_name=self.reference_name),
-            auto_download=auto_download)
-
-        # Database object turns the GTF dataframes into sqlite3 tables
-        # and wraps them with methods like `query_one`
-        self.db = Database(gtf=self.gtf, auto_download=auto_download)
-
-        # get the path for the cDNA FASTA file containing
-        # this genome database's transcript sequences
-        transcript_sequences = None
-        if transcript_fasta_path_or_url:
-            transcript_fasta_source = GenomeSource(
-                name="transcript_fasta_path_or_url",
-                path_or_url=transcript_fasta_path_or_url,
-                reference_name=self.reference_name)
-            transcript_sequences = SequenceData(
-                fasta_source=transcript_fasta_source,
-                require_ensembl_ids=require_ensembl_ids,
-                auto_download=auto_download)
-        self.transcript_sequences = transcript_sequences
-
-        protein_sequences = None
-        if protein_fasta_path_or_url:
-            protein_fasta_source = GenomeSource(
-                name="protein_fasta_path_or_url",
-                path_or_url=protein_fasta_path_or_url,
-                reference_name=self.reference_name)
-            protein_sequences = SequenceData(
-                fasta_source=protein_fasta_source,
-                require_ensembl_ids=require_ensembl_ids,
-                auto_download=auto_download)
-        self.protein_sequences = protein_sequences
+        self.require_ensembl_ids = require_ensembl_ids
 
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
 
+        self._initialize_annotation_data()
+
+    def _initialize_annotation_data(self):
+
+        if self.gtf_source:
+            self.gtf_path = "wolves_on_the_street"
+            # GTF object wraps the source GTF file from which we get
+            # genome annotations. Presents access to each feature
+            # annotations as a pandas.DataFrame.
+            self.gtf = GTF(gtf_path=self.gtf_path)
+            # Database object turns the GTF dataframes into sqlite3 tables
+            # and wraps them with methods like `query_one`
+            self.db = Database(gtf=self.gtf)
+
+        else:
+            self.gtf = None
+            self.gtf_path = None
+            self.db = None
+
+        if self.transcript_fasta_source:
+            self.transcript_fasta_path = "wolves_on_the_street"  # auto_download?
+            # get the path for the cDNA FASTA file containing
+            # this genome database's transcript sequences
+            self.transcript_sequences = SequenceData(
+                    fasta_path=self.transcript_fasta_path,
+                    require_ensembl_ids=self.require_ensembl_ids)
+        else:
+            self.transcript_fasta_path = None
+            self.transcript_sequences = None
+
+        if self.protein_fasta_source:
+            self.protein_fasta_path = "wolves_on_the_street"  # auto_download
+            self.protein_sequences = SequenceData(
+                fasta_path=self.protein_fasta_path,
+                require_ensembl_ids=self.require_ensembl_ids)
+
     def __str__(self):
         return ("Genome(reference_name=%s, "
-                "gtf_path_or_url=%s, "
-                "transcript_fasta_path_or_url=%s, "
-                "protein_fasta_path_or_url=%s, "
-                "name=%s, version=%s, only_human=%s)" % (
+                "annotation_name=%s, "
+                "annotation_version=%s, "
+                "gtf_source=%s, "
+                "transcript_fasta_source=%s, "
+                "protein_fasta_source=%s, "
+                "data_source=%s, "
+                "only_human=%s)" % (
                     self.reference_name,
-                    self.gtf_path_or_url,
-                    self.transcript_fasta_path_or_url,
-                    self.protein_fasta_path_or_url,
-                    self.name,
-                    self.version,
+                    self.annotation_name,
+                    self.annotation_version,
+                    self.gtf_source,
+                    self.transcript_fasta_source,
+                    self.protein_fasta_source,
+                    self.data_source,
                     self.only_human))
 
     def __repr__(self):
@@ -124,20 +126,19 @@ class Genome(object):
 
     def __eq__(self, other):
         return (
-            other.__class__ is Genome and
+            isinstance(other, Genome) and
             self.reference_name == other.reference_name and
-            self.gtf_path_or_url == other.gtf_path_or_url and
-            self.transcript_fasta_path_or_url == other.transcript_fasta_path_or_url and
-            self.protein_fasta_path_or_url == other.protein_fasta_path_or_url and
-            self.name == other.name and
-            self.version == other.version and
+            self.annotation_name == other.annotation_name and
+            self.annotation_version == other.annotation_version and
+            self.data_source == other.data_source and
             self.only_human == other.only_human)
 
     def __hash__(self):
-        return hash((self.reference_name, self.gtf_path_or_url,
-                     self.transcript_fasta_path_or_url,
-                     self.protein_fasta_path_or_url,
-                     self.name, self.version, self.only_human))
+        return hash((self.reference_name,
+                     self.annotation_name,
+                     self.annotation_version,
+                     self.data_source,
+                     self.only_human))
 
     def _delete_cached_files(self):
         """
