@@ -16,11 +16,9 @@ from __future__ import print_function, division, absolute_import
 from os.path import split, join, exists
 import pandas as pd
 
-import datacache
 from typechecks import require_string
 
 from .gtf_parsing import load_gtf_as_dataframe
-from .common import CACHE_SUBDIR
 from .locus import normalize_chromosome, normalize_strand
 from .compute_cache import cached_dataframe, clear_cached_objects
 
@@ -36,13 +34,8 @@ class GTF(object):
     """
     def __init__(
             self,
-            gtf_source,
-            auto_download=False,
-            decompress=True):
-        self.gtf_source = gtf_source
-        self.cache = datacache.Cache(CACHE_SUBDIR)
-        self.decompress = decompress
-        self.auto_download = auto_download
+            gtf_path):
+        self.filename = split(gtf_path)[1]
 
         # lazily load DataFrame of all GTF entries if necessary
         # for database construction
@@ -51,7 +44,7 @@ class GTF(object):
     def __eq__(self, other):
         return (
             isinstance(other, GTF) and
-            other.gtf_source == self.gtf_source)
+            other.gtf_path == self.gtf_path)
 
     def __hash__(self):
         return hash(self.gtf_source)
@@ -59,7 +52,6 @@ class GTF(object):
     def clear_cache(self):
         # clear any dataframes we constructed
         self._dataframes.clear()
-
         # clear cached dataframes loaded from CSV
         clear_cached_objects()
 
@@ -74,25 +66,6 @@ class GTF(object):
                 self.gtf_source.original_filename,)
 
         return self.gtf_source.original_filename.split(".gtf")[0]
-
-    def cached_filename(self):
-        """Filename used for cached copy of GTF"""
-        if self.decompress:
-            return self.base_filename() + ".gtf"
-        else:
-            return self.gtf_source.original_filename
-
-    def cached_copy_exists(self):
-        # If the source is a local file as opposed to a URL, then
-        # check to see if it was copied into the cache directory.
-        if not self.gtf_source.is_url_format():
-            return exists(self.gtf_source.cached_path(self.cache))
-
-        """Has a cached copy of the GTF file been downloaded/copied?"""
-        return self.cache.exists(
-            self.gtf_source.path_or_url,
-            self.cached_filename(),
-            decompress=self.decompress)
 
     def cached_gtf_path(self):
         """
@@ -122,7 +95,7 @@ class GTF(object):
     def cached_dir(self):
         return split(self.cached_gtf_path())[0]
 
-    def cached_data_file_path(
+    def cached_subset_filename(
             self,
             contig=None,
             feature=None,
@@ -131,7 +104,7 @@ class GTF(object):
             distinct=False,
             extension=".csv"):
         """
-        Path to cached file for storing materialized views of the genomic data.
+        Filename for cached materialized views of the genomic data.
         Typically this is a CSV file, the filename reflects which filters have
         been applied to the entries of the database.
 
@@ -152,8 +125,7 @@ class GTF(object):
         distinct : bool, optional
             Only keep unique values (default=False)
         """
-        base = self.cached_filename()
-        dirpath = self.cached_dir()
+        base = self.filename
         csv_filename = base + ".expanded"
         if contig:
             contig = normalize_chromosome(contig)
@@ -173,7 +145,7 @@ class GTF(object):
         if distinct:
             csv_filename += ".distinct"
         csv_filename += extension
-        return join(dirpath, csv_filename)
+        return csv_filename
 
     def _load_full_dataframe(self):
         """

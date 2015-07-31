@@ -30,11 +30,8 @@ def cache_subdir(annotation_name, annotation_version=None, reference_name=None):
 def get_cache(
         annotation_name,
         annotation_version=None,
-        reference_name=None,
-        data_type=None):
+        reference_name=None):
     subdir = cache_subdir(annotation_name, annotation_version, reference_name)
-    if data_type:
-        subdir = join(subdir, data_type)
     return datacache.Cache(subdir)
 
 def _memoize_cache_key(args, kwargs):

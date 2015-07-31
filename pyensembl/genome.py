@@ -27,7 +27,8 @@ from os import remove
 from .common import (
     require_human_transcript_id,
     require_human_protein_id,
-    memoize
+    memoize,
+    get_cache,
 )
 from .compute_cache import cached_object
 from .database import Database
@@ -64,15 +65,22 @@ class Genome(object):
         self.auto_download = auto_download
         self.require_ensembl_ids = require_ensembl_ids
 
+        self.cache = get_cache(
+            annotation_name=self.annotation_name,
+            annotation_version=self.annotation_version,
+            reference_name=self.reference_name)
+
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
-
         self._initialize_annotation_data()
+
+    def _get_local_path(self, path_or_url):
+
 
     def _initialize_annotation_data(self):
 
         if self.gtf_source:
-            self.gtf_path = "wolves_on_the_street"
+            self.gtf_path = self._get_local_path(gtf_source)
             # GTF object wraps the source GTF file from which we get
             # genome annotations. Presents access to each feature
             # annotations as a pandas.DataFrame.
@@ -140,26 +148,13 @@ class Genome(object):
                      self.data_source,
                      self.only_human))
 
-    def _delete_cached_files(self):
-        """
-        Any files which start with the same name as our GTF file
-        is assumed to be some view of the this genome database's data
-        and thus safe to delete.
-        """
-        base = self.gtf.base_filename()
-        dirpath = self.gtf.local_gtf_path()
-        for path in glob(join(dirpath, base + "*")):
-            logging.info("Deleting cached file %s", path)
-            remove(path)
-
     def clear_cache(self):
         for maybe_fn in self.__dict__.values():
             # clear cache associated with all memoization decorators,
             # GTF and SequenceData objects
             if hasattr(maybe_fn, "clear_cache"):
                 maybe_fn.clear_cache()
-
-        self._delete_cached_files()
+        self.cache.clear()
 
     def all_feature_values(
             self,
