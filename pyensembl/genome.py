@@ -74,13 +74,12 @@ class Genome(object):
         self.logger.setLevel(logging.INFO)
         self._initialize_annotation_data()
 
-    def _get_local_path(self, path_or_url):
-
+    #def _get_local_path(self, path_or_url):
 
     def _initialize_annotation_data(self):
 
         if self.gtf_source:
-            self.gtf_path = self._get_local_path(gtf_source)
+            self.gtf_path = self._get_local_path(self.gtf_source)
             # GTF object wraps the source GTF file from which we get
             # genome annotations. Presents access to each feature
             # annotations as a pandas.DataFrame.
@@ -95,7 +94,8 @@ class Genome(object):
             self.db = None
 
         if self.transcript_fasta_source:
-            self.transcript_fasta_path = "wolves_on_the_street"  # auto_download?
+            self.transcript_fasta_path = self._get_local_path(
+                self.transcript_fasta_source)
             # get the path for the cDNA FASTA file containing
             # this genome database's transcript sequences
             self.transcript_sequences = SequenceData(
@@ -106,10 +106,33 @@ class Genome(object):
             self.transcript_sequences = None
 
         if self.protein_fasta_source:
-            self.protein_fasta_path = "wolves_on_the_street"  # auto_download
+            self.protein_fasta_path = self._get_local_path(
+                self.transcript_fasta_source)
             self.protein_sequences = SequenceData(
                 fasta_path=self.protein_fasta_path,
                 require_ensembl_ids=self.require_ensembl_ids)
+        else:
+            self.protein_fasta_path = None
+            self.protein_sequences = None
+
+    def _cached_path(self, cache):
+        """
+        The full path to the cached file.
+        """
+        return join(cache.cache_directory_path,
+                    self.cached_filename)
+
+    def install_string_console(self):
+        # TODO: Add all the options for installing GTF & FASTA files
+        return "pyensembl install --%s \"%s\"" % (
+            self.name, self.path_or_url)
+
+    def install_string_python(self):
+        return "Genome(reference_name=%s, %s=\"%s\")).install()" % (
+            self.reference_name, self.name, self.path_or_url)
+
+    def is_url_format(self):
+        return "://" in self.path_or_url
 
     def __str__(self):
         return ("Genome(reference_name=%s, "

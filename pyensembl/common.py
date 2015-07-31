@@ -18,6 +18,10 @@ from os.path import join
 import datacache
 from typechecks import is_string
 
+
+def is_url_format(path_or_url):
+    return "://" in path_or_url
+
 CACHE_BASE_SUBDIR = "pyensembl"
 
 def cache_subdir(annotation_name, annotation_version=None, reference_name=None):
