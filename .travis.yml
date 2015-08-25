@@ -15,8 +15,9 @@ install:
   - pip install -r requirements.txt
   - pip install .
   # human releases
+script:
   - pyensembl install --release 79 --species human
-script: nosetests test && ./lint.sh
+  - nosetests test && ./lint.sh
 deploy:
   provider: pypi
   user: hammerlab
