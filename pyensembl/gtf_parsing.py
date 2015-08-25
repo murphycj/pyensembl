@@ -146,6 +146,8 @@ def _extend_with_attributes(df):
         # Required to do this since the GTF for Ensembl 78 has
         # gene_name = "PRAMEF6;"
         # transcript_name = "PRAMEF6;-201"
+        if i % 100000 == 0:
+            print("Attribute counter: %d" % i)
         attr_string = attr_string.replace(';\"', '\"').replace(";-", "-")
 
         pairs = (
