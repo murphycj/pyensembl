@@ -16,11 +16,6 @@ install:
   - pip install .
   # human releases
   - travis_wait pyensembl install --release 75 --species human
-  - travis_wait pyensembl install --release 77 --species human
-  - travis_wait pyensembl install --release 79 --species human
-  - travis_wait pyensembl install --release 81 --species human
-  # mouse releases
-  - travis_wait pyensembl install --release 81 --species mouse
 script: nosetests test && ./lint.sh
 deploy:
   provider: pypi
