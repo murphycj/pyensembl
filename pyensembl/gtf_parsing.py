@@ -178,6 +178,7 @@ def _extend_with_attributes(df):
 
     logging.info("Adding attribute columns: %s", column_order)
     for k in column_order:
+        logging.info("Print line: %s" % k)
         assert k not in df, "Column '%s' appears in GTF twice" % k
         df[k] = extra_columns[k]
         # delete from dictionary since these objects are big
