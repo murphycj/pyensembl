@@ -177,7 +177,10 @@ def _extend_with_attributes(df):
     df = df.drop("attribute", axis=1)
 
     #logging.info("Adding attribute columns: %s", column_order)
+    # import pdb; pdb.set_trace()
     for k in column_order:
+        if k == "gene_version":
+            continue
         print("Print line: %s" % k)
         assert k not in df, "Column '%s' appears in GTF twice" % k
         df[k] = extra_columns[k]
