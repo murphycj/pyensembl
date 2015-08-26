@@ -130,8 +130,8 @@ def _extend_with_attributes(df):
         # Required to do this since the GTF for Ensembl 78 has
         # gene_name = "PRAMEF6;"
         # transcript_name = "PRAMEF6;-201"
-        if i % 100000 == 0:
-            print("Attribute counter: %d" % i)
+        #if i % 100000 == 0:
+        #    #print("Attribute counter: %d" % i)
         attr_string = attr_string.replace(';\"', '\"').replace(";-", "-")
 
         pairs = (
@@ -163,7 +163,7 @@ def _extend_with_attributes(df):
     #logging.info("Adding attribute columns: %s", column_order)
     # import pdb; pdb.set_trace()
     for k in column_order:
-        print("Print line: %s" % k)
+        #print("Print line: %s" % k)
         assert k not in df, "Column '%s' appears in GTF twice" % k
         df[k] = extra_columns[k]
         # delete from dictionary since these objects are big
@@ -368,4 +368,6 @@ def load_gtf_as_dataframe(filename):
             else:
                 logging.info("Cannot create 'exon_id' column")
         dfs.append(df)
-    return pd.concat(dfs)
+    df = pd.concat(dfs)
+    #print("Length DF: %d" % len(df))
+    return df
