@@ -90,30 +90,14 @@ def _read_gtf(filename):
     assert filename.endswith(".gtf") or filename.endswith(".gtf.gz"), \
         "Must be a GTF file (%s)" % filename
     compression = "gzip" if filename.endswith(".gz") else None
-    df = pd.read_csv(
+    return pd.read_csv(
         filename,
         comment='#',
         sep='\t',
         names=GTF_COLS,
         na_filter=False,
-        compression=compression)
-
-    df['seqname'] = df['seqname'].map(
-        lambda seqname: normalize_chromosome(str(seqname)))
-
-    # very old GTF files use the second column to store the gene biotype
-    # others use it to store the transcript biotype and
-    # anything beyond release 77+ will use it to store
-    # the source of the annotation (e.g. "havana")
-    if pandas_series_is_biotype(df['second_column']):
-        # patch this later to either 'transcript_biotype' or 'gene_biotype'
-        # depending on what other annotations are present
-        column_name = 'biotype'
-    else:
-        column_name = 'source'
-    df.rename(columns={'second_column': column_name}, inplace=True)
-
-    return df
+        compression=compression,
+        chunksize=100000)
 
 def _attribute_dictionaries(df):
     """
@@ -179,13 +163,11 @@ def _extend_with_attributes(df):
     #logging.info("Adding attribute columns: %s", column_order)
     # import pdb; pdb.set_trace()
     for k in column_order:
-        if k == "gene_version":
-            continue
         print("Print line: %s" % k)
         assert k not in df, "Column '%s' appears in GTF twice" % k
         df[k] = extra_columns[k]
         # delete from dictionary since these objects are big
-        # and we might be runniung low on memory
+        # and we might be running low on memory
         del extra_columns[k]
         # remove quotes around values
         df[k] = df[k].str.replace("\"", "")
@@ -310,62 +292,80 @@ def reconstruct_exon_id_column(df, inplace=True):
 
 def load_gtf_as_dataframe(filename):
     logging.info("Reading GTF %s into DataFrame", filename)
-    df = _read_gtf(filename)
-    logging.info(
-        "Extracting attributes for %d entries in GTF DataFrame", len(df))
-    df = _extend_with_attributes(df)
+    chunks = _read_gtf(filename)
+    dfs = []
+    for df in chunks:
+        df['seqname'] = df['seqname'].map(
+            lambda seqname: normalize_chromosome(str(seqname)))
 
-    # due to the annoying ambiguity of the second GTF column,
-    # figure out if an older GTF's biotype is actually the gene_biotype
-    # or transcript_biotype
-
-    if 'biotype' in df.columns:
-        assert 'transcript_biotype' not in df.columns, \
-            "Inferred 2nd column as biotype but also found transcript_biotype"
-
-        # Initially we could only figure out if the 2nd column was either
-        # the source of the annotation or some kind of biotype (either
-        # a gene_biotype or transcript_biotype).
-        # Now we disambiguate between the two biotypes by checking if
-        # gene_biotype is already present in another column. If it is,
-        # the 2nd column is the transcript_biotype (otherwise, it's the
-        # gene_biotype)
-        if 'gene_biotype' in df.columns:
-            rename_to = 'transcript_biotype'
+        # very old GTF files use the second column to store the gene biotype
+        # others use it to store the transcript biotype and
+        # anything beyond release 77+ will use it to store
+        # the source of the annotation (e.g. "havana")
+        if pandas_series_is_biotype(df['second_column']):
+            # patch this later to either 'transcript_biotype' or 'gene_biotype'
+            # depending on what other annotations are present
+            column_name = 'biotype'
         else:
-            rename_to = 'gene_biotype'
-        df.rename(columns={'biotype': rename_to}, inplace=True)
+            column_name = 'source'
+        df.rename(columns={'second_column': column_name}, inplace=True)
 
-    for column_name in REQUIRED_ATTRIBUTE_COLUMNS:
-        assert column_name in df.columns, \
-            "Missing required column '%s', available: %s" % (
-                column_name,
-                list(sorted(df.columns)))
+        logging.info(
+            "Extracting attributes for %d entries in GTF DataFrame", len(df))
+        df = _extend_with_attributes(df)
 
-    # older Ensembl releases only had features:
-    #   - exon
-    #   - CDS
-    #   - start_codon
-    #   - stop_codon
-    # (And this also applies to other non-Ensembl GTF files.)
-    #
-    # Might have to manually reconstruct gene & transcript entries
-    # by grouping the gene_id and transcript_id columns of existing features
+        # due to the annoying ambiguity of the second GTF column,
+        # figure out if an older GTF's biotype is actually the gene_biotype
+        # or transcript_biotype
 
-    distinct_features = df.feature.unique()
+        if 'biotype' in df.columns:
+            assert 'transcript_biotype' not in df.columns, \
+                "Inferred 2nd column as biotype but also found transcript_biotype"
 
-    if 'gene' not in distinct_features:
-        logging.info("Creating entries for feature='gene'")
-        df = reconstruct_gene_rows(df)
+            # Initially we could only figure out if the 2nd column was either
+            # the source of the annotation or some kind of biotype (either
+            # a gene_biotype or transcript_biotype).
+            # Now we disambiguate between the two biotypes by checking if
+            # gene_biotype is already present in another column. If it is,
+            # the 2nd column is the transcript_biotype (otherwise, it's the
+            # gene_biotype)
+            if 'gene_biotype' in df.columns:
+                rename_to = 'transcript_biotype'
+            else:
+                rename_to = 'gene_biotype'
+            df.rename(columns={'biotype': rename_to}, inplace=True)
 
-    if 'transcript' not in distinct_features:
-        logging.info("Creating entries for feature='transcript'")
-        df = reconstruct_transcript_rows(df)
+        for column_name in REQUIRED_ATTRIBUTE_COLUMNS:
+            assert column_name in df.columns, \
+                "Missing required column '%s', available: %s" % (
+                    column_name,
+                    list(sorted(df.columns)))
 
-    if 'exon_id' not in df:
-        if can_reconstruct_exon_id_column(df):
-            logging.info("Creating 'exon_id' column")
-            df = reconstruct_exon_id_column(df)
-        else:
-            logging.info("Cannot create 'exon_id' column")
-    return df
+        # older Ensembl releases only had features:
+        #   - exon
+        #   - CDS
+        #   - start_codon
+        #   - stop_codon
+        # (And this also applies to other non-Ensembl GTF files.)
+        #
+        # Might have to manually reconstruct gene & transcript entries
+        # by grouping the gene_id and transcript_id columns of existing features
+
+        distinct_features = df.feature.unique()
+
+        if 'gene' not in distinct_features:
+            logging.info("Creating entries for feature='gene'")
+            df = reconstruct_gene_rows(df)
+
+        if 'transcript' not in distinct_features:
+            logging.info("Creating entries for feature='transcript'")
+            df = reconstruct_transcript_rows(df)
+
+        if 'exon_id' not in df:
+            if can_reconstruct_exon_id_column(df):
+                logging.info("Creating 'exon_id' column")
+                df = reconstruct_exon_id_column(df)
+            else:
+                logging.info("Cannot create 'exon_id' column")
+        dfs.append(df)
+    return pd.concat(dfs)
