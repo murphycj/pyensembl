@@ -15,10 +15,11 @@ addons:
     packages:
     - pandoc
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy nose pandas matplotlib pypandoc
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy nose pandas matplotlib
   - pip install -r requirements.txt
   - pip install .
   - pip install coveralls
+  - pip install pypandoc
 script:
   # human releases
   - pyensembl install --release 54 --species human
