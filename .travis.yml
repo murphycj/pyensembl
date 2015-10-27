@@ -15,7 +15,7 @@ addons:
     packages:
     - pandoc
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy nose pandas matplotlib
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy nose pandas matplotlib pypandoc
   - pip install -r requirements.txt
   - pip install .
   - pip install coveralls
